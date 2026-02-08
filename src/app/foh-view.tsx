@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import {
-  ShoppingCart, LayoutGrid, Receipt, LogOut, Wine, Beer, CupSoda,
+  ShoppingCart, LayoutGrid, Receipt, LogOut, Wine, Beer, CupSoda, AlertTriangle,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useInventoryStore } from '@/stores/inventory-store';
@@ -12,6 +12,8 @@ import { ProductCard } from '@/components/orders/product-card';
 import { SaleConfirmModal } from '@/components/orders/sale-confirm-modal';
 import { TableCard } from '@/components/tables/table-card';
 import { TableDetailModal } from '@/components/tables/table-detail-modal';
+import { WasteModal } from '@/components/inventory/waste-modal';
+import { StaffMessageModal } from '@/components/auth/staff-message-modal';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -28,6 +30,9 @@ export function FohView() {
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [showClosedTables, setShowClosedTables] = useState(false);
   const [tappedId, setTappedId] = useState<string | null>(null);
+  const [wasteProduct, setWasteProduct] = useState<ProductWithCalc | null>(null);
+  const [showWasteModal, setShowWasteModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const currentStaff = useAuthStore((s) => s.currentStaff);
   const logout = useAuthStore((s) => s.logout);
@@ -51,6 +56,11 @@ export function FohView() {
   const handleProductTap = (product: ProductWithCalc) => {
     setSelectedProduct(product);
     setShowSaleModal(true);
+  };
+
+  const handleProductLongPress = (product: ProductWithCalc) => {
+    setWasteProduct(product);
+    setShowWasteModal(true);
   };
 
   const handleConfirmSale = useCallback(
@@ -139,7 +149,7 @@ export function FohView() {
               >
                 {showUSD ? 'USD' : 'COP'}
               </button>
-              <button onClick={logout} className="p-2 rounded-lg hover:bg-white/10 transition">
+              <button onClick={() => setShowLogoutModal(true)} className="p-2 rounded-lg hover:bg-white/10 transition">
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
@@ -230,6 +240,7 @@ export function FohView() {
                   key={product.id}
                   product={product}
                   onTap={handleProductTap}
+                  onLongPress={handleProductLongPress}
                   showAnimation={tappedId === product.id}
                 />
               ))}
@@ -315,6 +326,22 @@ export function FohView() {
         table={selectedTable as TableWithOrders || null}
         isOpen={!!selectedTableId}
         onClose={() => setSelectedTableId(null)}
+      />
+
+      {/* Waste modal */}
+      <WasteModal
+        product={wasteProduct}
+        isOpen={showWasteModal}
+        onClose={() => { setShowWasteModal(false); setWasteProduct(null); }}
+      />
+
+      {/* Logout message modal */}
+      <StaffMessageModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onLogout={logout}
+        staffId={currentStaff?.id || ''}
+        staffName={currentStaff?.name || ''}
       />
     </div>
   );

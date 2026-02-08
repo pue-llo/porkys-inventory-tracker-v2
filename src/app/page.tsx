@@ -6,6 +6,8 @@ import { useInventoryStore } from '@/stores/inventory-store';
 import { useTableStore } from '@/stores/table-store';
 import { useBohStore } from '@/stores/boh-store';
 import { useRealtime } from '@/hooks/use-realtime';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { PwaInstallPrompt, OfflineBanner } from '@/components/ui/pwa-install';
 import { PinPad } from '@/components/auth/pin-pad';
 import { StaffSetup } from '@/components/auth/staff-setup';
 import { FohView } from './foh-view';
@@ -29,6 +31,7 @@ export default function HomePage() {
   const loadProducts = useInventoryStore((s) => s.loadProducts);
   const loadCategories = useInventoryStore((s) => s.loadCategories);
   const loadDailyInventory = useInventoryStore((s) => s.loadDailyInventory);
+  const loadWasteLog = useInventoryStore((s) => s.loadWasteLog);
   const initializeDailyInventory = useInventoryStore((s) => s.initializeDailyInventory);
   const loadTables = useTableStore((s) => s.loadTables);
   const loadOrders = useTableStore((s) => s.loadOrders);
@@ -49,6 +52,7 @@ export default function HomePage() {
       await Promise.all([
         loadDailyInventory(),
         loadTables(),
+        loadWasteLog(),
       ]);
       setIsInitialized(true);
     };
@@ -115,13 +119,31 @@ export default function HomePage() {
   const role = currentStaff?.role || 'foh';
 
   if (role === 'admin') {
-    return <AdminView />;
+    return (
+      <ErrorBoundary>
+        <OfflineBanner />
+        <AdminView />
+        <PwaInstallPrompt />
+      </ErrorBoundary>
+    );
   }
 
   if (role === 'boh') {
-    return <BohView />;
+    return (
+      <ErrorBoundary>
+        <OfflineBanner />
+        <BohView />
+        <PwaInstallPrompt />
+      </ErrorBoundary>
+    );
   }
 
   // Default: FOH
-  return <FohView />;
+  return (
+    <ErrorBoundary>
+      <OfflineBanner />
+      <FohView />
+      <PwaInstallPrompt />
+    </ErrorBoundary>
+  );
 }

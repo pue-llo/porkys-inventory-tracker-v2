@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { getTodayKey, calculateFields } from '@/lib/utils';
-import type { Product, InventoryDaily, Category, ProductWithCalc } from '@/types';
+import type { Product, InventoryDaily, Category, ProductWithCalc, WasteLog, WasteReason } from '@/types';
 
 interface InventoryState {
   // State
   products: Product[];
   categories: Category[];
   dailyInventory: Record<string, InventoryDaily>; // keyed by product_id
+  wasteLog: WasteLog[];
   isLoading: boolean;
   error: string | null;
 
@@ -15,11 +16,14 @@ interface InventoryState {
   getProductsWithCalc: (categoryFilter?: string, searchTerm?: string) => ProductWithCalc[];
   getProduct: (id: string) => Product | undefined;
   getDailyInventory: (productId: string) => InventoryDaily | undefined;
+  getTodayWaste: () => WasteLog[];
+  getTotalWasteValue: () => number;
 
   // Actions
   loadProducts: () => Promise<void>;
   loadCategories: () => Promise<void>;
   loadDailyInventory: () => Promise<void>;
+  loadWasteLog: () => Promise<void>;
   initializeDailyInventory: () => Promise<void>;
   createProduct: (product: Partial<Product>) => Promise<Product | null>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
@@ -27,12 +31,14 @@ interface InventoryState {
   recordSale: (productId: string, quantity: number) => Promise<void>;
   undoSale: (productId: string, quantity: number) => Promise<void>;
   restockProduct: (productId: string, quantity: number) => Promise<void>;
+  recordWaste: (productId: string, productName: string, categoryId: string, quantity: number, reason: WasteReason, notes: string, pricePerUnit: number, staffId: string | null, staffName: string | null) => Promise<void>;
 }
 
 export const useInventoryStore = create<InventoryState>((set, get) => ({
   products: [],
   categories: [],
   dailyInventory: {},
+  wasteLog: [],
   isLoading: false,
   error: null,
 
@@ -61,6 +67,20 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   getProduct: (id: string) => get().products.find((p) => p.id === id),
 
   getDailyInventory: (productId: string) => get().dailyInventory[productId],
+
+  getTodayWaste: () => {
+    const today = getTodayKey();
+    return get().wasteLog
+      .filter((w) => w.date === today)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  getTotalWasteValue: () => {
+    const today = getTodayKey();
+    return get().wasteLog
+      .filter((w) => w.date === today)
+      .reduce((sum, w) => sum + w.value_lost, 0);
+  },
 
   // ---- Actions ----
   loadProducts: async () => {
@@ -302,6 +322,72 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
           [productId]: { ...inv, restocked: inv.restocked + quantity },
         },
       }));
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
+  loadWasteLog: async () => {
+    const today = getTodayKey();
+    try {
+      const { data, error } = await supabase
+        .from('waste_log')
+        .select('*')
+        .eq('date', today)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      set({ wasteLog: data || [] });
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
+  recordWaste: async (productId, productName, categoryId, quantity, reason, notes, pricePerUnit, staffId, staffName) => {
+    const today = getTodayKey();
+    const valueLost = pricePerUnit * quantity;
+
+    try {
+      // Insert waste log entry
+      const { error: wasteError } = await supabase.from('waste_log').insert({
+        product_id: productId,
+        product_name: productName,
+        category_id: categoryId,
+        quantity,
+        reason,
+        notes: notes || '',
+        staff_id: staffId,
+        staff_name: staffName,
+        value_lost: valueLost,
+        date: today,
+      });
+      if (wasteError) throw wasteError;
+
+      // Update inventory_daily.wasted
+      const inv = get().dailyInventory[productId];
+      if (inv) {
+        const { error: invError } = await supabase
+          .from('inventory_daily')
+          .update({
+            wasted: inv.wasted + quantity,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('product_id', productId)
+          .eq('date', today);
+
+        if (invError) throw invError;
+
+        // Optimistic update
+        set((state) => ({
+          dailyInventory: {
+            ...state.dailyInventory,
+            [productId]: { ...inv, wasted: inv.wasted + quantity },
+          },
+        }));
+      }
+
+      // Refresh waste log
+      await get().loadWasteLog();
     } catch (err: any) {
       set({ error: err.message });
     }

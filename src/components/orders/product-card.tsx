@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Wine, Beer, CupSoda } from 'lucide-react';
 import { cn, getStockLevel } from '@/lib/utils';
 import { getCategoryInfo } from '@/lib/constants';
@@ -10,6 +10,7 @@ import type { ProductWithCalc } from '@/types';
 interface ProductCardProps {
   product: ProductWithCalc;
   onTap: (product: ProductWithCalc) => void;
+  onLongPress?: (product: ProductWithCalc) => void;
   showAnimation?: boolean;
   mode?: 'foh' | 'boh';
   cartQuantity?: number;
@@ -21,15 +22,45 @@ const categoryIcons: Record<string, typeof Wine> = {
   fountain: CupSoda,
 };
 
-export function ProductCard({ product, onTap, showAnimation, mode = 'foh', cartQuantity = 0 }: ProductCardProps) {
+export function ProductCard({ product, onTap, onLongPress, showAnimation, mode = 'foh', cartQuantity = 0 }: ProductCardProps) {
   const formatMoney = useCurrencyStore((s) => s.format);
   const cat = getCategoryInfo(product.category_id);
   const stockLevel = getStockLevel(product.remaining, product.totalUnits);
   const Icon = categoryIcons[product.category_id] || Wine;
 
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLongPress = useRef(false);
+
+  const handleTouchStart = useCallback(() => {
+    if (!onLongPress) return;
+    isLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      isLongPress.current = true;
+      onLongPress(product);
+    }, 600);
+  }, [onLongPress, product]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
+  const handleClick = useCallback(() => {
+    if (isLongPress.current) {
+      isLongPress.current = false;
+      return;
+    }
+    onTap(product);
+  }, [onTap, product]);
+
   return (
     <button
-      onClick={() => onTap(product)}
+      onClick={handleClick}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
       className={cn(
         'product-card relative bg-white rounded-2xl p-3 border text-left transition-all duration-150 w-full',
         'hover:shadow-md active:scale-[0.97]',
@@ -75,6 +106,11 @@ export function ProductCard({ product, onTap, showAnimation, mode = 'foh', cartQ
           'absolute top-2 right-2 w-2 h-2 rounded-full',
           stockLevel === 'critical' ? 'bg-red-500 animate-pulse-dot' : 'bg-amber-400'
         )} />
+      )}
+
+      {/* Par level warning */}
+      {product.par_level > 0 && product.remaining <= product.par_level && stockLevel === 'ok' && (
+        <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-400" />
       )}
 
       {/* BOH cart badge */}

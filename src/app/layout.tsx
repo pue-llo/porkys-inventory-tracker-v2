@@ -5,9 +5,14 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Inventory Tracker V2',
+  title: "Porky's Inventory Tracker",
   description: 'Bar inventory management with real-time multi-device sync',
   manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: "Porky's Inventory",
+  },
 };
 
 export const viewport: Viewport = {
@@ -25,6 +30,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+      </head>
       <body className={`${inter.className} bg-gray-50 min-h-screen`}>
         {children}
       </body>

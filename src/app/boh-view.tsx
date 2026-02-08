@@ -9,6 +9,7 @@ import { useInventoryStore } from '@/stores/inventory-store';
 import { useBohStore } from '@/stores/boh-store';
 import { useCurrencyStore } from '@/hooks/use-currency';
 import { ProductCard } from '@/components/orders/product-card';
+import { StaffMessageModal } from '@/components/auth/staff-message-modal';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn, formatTime, formatRelativeTime } from '@/lib/utils';
@@ -18,6 +19,7 @@ import type { ProductWithCalc, StaffProfile } from '@/types';
 export function BohView() {
   const [viewMode, setViewMode] = useState<'products' | 'history'>('products');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const currentStaff = useAuthStore((s) => s.currentStaff);
   const allStaff = useAuthStore((s) => s.allStaff);
@@ -151,7 +153,7 @@ export function BohView() {
                 <span className="font-bold">{getTodayTotal()}</span>
                 <span className="text-orange-200 ml-1">sent today</span>
               </div>
-              <button onClick={logout} className="p-2 rounded-lg hover:bg-white/10 transition">
+              <button onClick={() => setShowLogoutModal(true)} className="p-2 rounded-lg hover:bg-white/10 transition">
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
@@ -276,6 +278,15 @@ export function BohView() {
           </Button>
         </div>
       )}
+
+      {/* Logout message modal */}
+      <StaffMessageModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onLogout={logout}
+        staffId={currentStaff?.id || ''}
+        staffName={currentStaff?.name || ''}
+      />
     </div>
   );
 }

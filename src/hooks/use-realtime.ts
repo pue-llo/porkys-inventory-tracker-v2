@@ -14,6 +14,7 @@ export function useRealtime() {
   const loadTables = useTableStore((s) => s.loadTables);
   const loadOrders = useTableStore((s) => s.loadOrders);
   const loadDailyInventory = useInventoryStore((s) => s.loadDailyInventory);
+  const loadWasteLog = useInventoryStore((s) => s.loadWasteLog);
   const loadDisbursements = useBohStore((s) => s.loadDisbursements);
 
   useEffect(() => {
@@ -51,10 +52,18 @@ export function useRealtime() {
           loadDisbursements();
         }
       )
+      // Waste log changes
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'waste_log' },
+        () => {
+          loadWasteLog();
+        }
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadTables, loadOrders, loadDailyInventory, loadDisbursements]);
+  }, [loadTables, loadOrders, loadDailyInventory, loadWasteLog, loadDisbursements]);
 }
