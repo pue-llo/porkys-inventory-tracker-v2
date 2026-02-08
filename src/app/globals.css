@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mobile optimizations */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input, textarea, select {
+  -webkit-user-select: auto;
+  user-select: auto;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent rubber-banding on iOS */
+body {
+  overscroll-behavior-y: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+
+/* Numpad button sizing */
+.numpad-btn {
+  min-height: 64px;
+  font-size: 24px;
+}
+
+.product-card {
+  touch-action: manipulation;
+}
