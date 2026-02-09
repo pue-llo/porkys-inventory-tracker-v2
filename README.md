@@ -69,6 +69,16 @@ src/
 - `src/hooks/use-realtime.ts` — Multi-device sync via Supabase Realtime
 
 ## Roles
-- **Admin** → Full inventory CRUD, staff management, export
-- **FOH** → Product ordering, table management, activity log
-- **BOH** → Cart-based disbursement to FOH staff
+- **Admin** → Full inventory CRUD, staff management, EOD reports with BOH disbursement data, analytics, waste tracking, Excel export
+- **FOH** → Product ordering, table management, activity log, currency toggle (COP/USD)
+- **BOH** → Cart-based disbursement to FOH staff (no stock visibility — only FOH affects inventory numbers)
+
+## Features
+- **PIN-based login** with role-based routing (Admin / FOH / BOH)
+- **Real-time sync** across devices via Supabase Realtime
+- **End-of-shift notes** — staff can leave messages for the owner from the login screen
+- **BOH disbursement tracking** — BOH logs items handed to FOH; data flows into Admin EOD reports
+- **EOD reports** — daily sales, waste, cash reconciliation, top sellers, staff performance, BOH disbursements (by product & by FOH staff)
+- **Excel export** — full inventory, waste log, BOH disbursements, tables, and EOD summary sheets
+- **PWA support** — installable on mobile with offline banner
+- **Currency toggle** — COP/USD with live exchange rate

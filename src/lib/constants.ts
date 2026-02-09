@@ -8,7 +8,7 @@ export const CATEGORIES: CategoryInfo[] = [
     bgColor: 'bg-purple-100',
     textColor: 'text-purple-700',
     borderColor: 'border-purple-300',
-    darkBg: 'bg-purple-600',
+    darkBg: 'bg-purple-700',
     icon: 'wine',
   },
   {
@@ -18,7 +18,7 @@ export const CATEGORIES: CategoryInfo[] = [
     bgColor: 'bg-amber-100',
     textColor: 'text-amber-700',
     borderColor: 'border-amber-300',
-    darkBg: 'bg-amber-500',
+    darkBg: 'bg-amber-700',
     icon: 'beer',
   },
   {
@@ -28,7 +28,7 @@ export const CATEGORIES: CategoryInfo[] = [
     bgColor: 'bg-cyan-100',
     textColor: 'text-cyan-700',
     borderColor: 'border-cyan-300',
-    darkBg: 'bg-cyan-500',
+    darkBg: 'bg-cyan-700',
     icon: 'cup-soda',
   },
 ];

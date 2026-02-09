@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Delete } from 'lucide-react';
+import { Delete, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PinPadProps {
@@ -11,6 +11,7 @@ interface PinPadProps {
   subtitle?: string;
   error?: string | null;
   isLoading?: boolean;
+  onEndShift?: () => void;
 }
 
 export function PinPad({
@@ -20,6 +21,7 @@ export function PinPad({
   subtitle,
   error,
   isLoading,
+  onEndShift,
 }: PinPadProps) {
   const [pin, setPin] = useState('');
 
@@ -128,6 +130,17 @@ export function PinPad({
           <Delete className="w-6 h-6" />
         </button>
       </div>
+
+      {/* End Shift */}
+      {onEndShift && (
+        <button
+          onClick={onEndShift}
+          className="mt-8 flex items-center gap-2 text-sm text-gray-400 hover:text-gray-600 transition"
+        >
+          <MessageSquare className="w-4 h-4" />
+          End Shift / Leave a Note
+        </button>
+      )}
     </div>
   );
 }

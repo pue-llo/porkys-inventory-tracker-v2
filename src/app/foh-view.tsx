@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import {
-  ShoppingCart, LayoutGrid, Receipt, LogOut, Wine, Beer, CupSoda, AlertTriangle,
+  ShoppingCart, LayoutGrid, Receipt, LogOut, Wine, Beer, CupSoda,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useInventoryStore } from '@/stores/inventory-store';
@@ -13,7 +13,7 @@ import { SaleConfirmModal } from '@/components/orders/sale-confirm-modal';
 import { TableCard } from '@/components/tables/table-card';
 import { TableDetailModal } from '@/components/tables/table-detail-modal';
 import { WasteModal } from '@/components/inventory/waste-modal';
-import { StaffMessageModal } from '@/components/auth/staff-message-modal';
+
 import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -32,7 +32,6 @@ export function FohView() {
   const [tappedId, setTappedId] = useState<string | null>(null);
   const [wasteProduct, setWasteProduct] = useState<ProductWithCalc | null>(null);
   const [showWasteModal, setShowWasteModal] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const currentStaff = useAuthStore((s) => s.currentStaff);
   const logout = useAuthStore((s) => s.logout);
@@ -149,7 +148,7 @@ export function FohView() {
               >
                 {showUSD ? 'USD' : 'COP'}
               </button>
-              <button onClick={() => setShowLogoutModal(true)} className="p-2 rounded-lg hover:bg-white/10 transition">
+              <button onClick={logout} className="p-2 rounded-lg hover:bg-white/10 transition">
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
@@ -192,7 +191,7 @@ export function FohView() {
               onClick={() => setCategoryFilter('all')}
               className={cn(
                 'flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition',
-                categoryFilter === 'all' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 border border-gray-200'
+                categoryFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
               )}
             >
               All
@@ -205,7 +204,7 @@ export function FohView() {
                   onClick={() => setCategoryFilter(cat.id)}
                   className={cn(
                     'flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition',
-                    categoryFilter === cat.id ? `${cat.darkBg} text-white` : 'bg-white text-gray-600 border border-gray-200'
+                    categoryFilter === cat.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
                   )}
                 >
                   <Icon className="w-4 h-4" />
@@ -335,14 +334,6 @@ export function FohView() {
         onClose={() => { setShowWasteModal(false); setWasteProduct(null); }}
       />
 
-      {/* Logout message modal */}
-      <StaffMessageModal
-        isOpen={showLogoutModal}
-        onClose={() => setShowLogoutModal(false)}
-        onLogout={logout}
-        staffId={currentStaff?.id || ''}
-        staffName={currentStaff?.name || ''}
-      />
     </div>
   );
 }

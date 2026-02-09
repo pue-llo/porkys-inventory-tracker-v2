@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import {
   Package, Users, Download, LogOut, Plus, Search, Edit3, Trash2,
-  Eye, EyeOff, Wine, Beer, CupSoda, UserPlus, ShoppingCart, RefreshCw,
-  AlertTriangle, MessageSquare, FileText, BarChart3, Bell, ChevronDown, ChevronUp,
+  Eye, EyeOff, Wine, Beer, CupSoda, UserPlus, RefreshCw,
+  AlertTriangle, MessageSquare, FileText, BarChart3, Bell,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useInventoryStore } from '@/stores/inventory-store';
@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StaffSetup } from '@/components/auth/staff-setup';
 import { WasteModal } from '@/components/inventory/waste-modal';
-import { FohView } from './foh-view';
+
 import { EodView } from './eod-view';
 import { AnalyticsView } from './analytics-view';
 import { cn, getStockLevel, formatTime, getTodayKey } from '@/lib/utils';
@@ -25,7 +25,7 @@ import { supabase } from '@/lib/supabase';
 import type { Product, ProductWithCalc, StaffMessage, WasteLog } from '@/types';
 import { WASTE_REASONS } from '@/types';
 
-type AdminTab = 'inventory' | 'orders' | 'staff' | 'waste' | 'messages' | 'eod' | 'analytics';
+type AdminTab = 'inventory' | 'staff' | 'waste' | 'messages' | 'eod' | 'analytics';
 
 export function AdminView() {
   const [tab, setTab] = useState<AdminTab>('inventory');
@@ -236,19 +236,6 @@ export function AdminView() {
   };
 
   // ---- Special views ----
-  if (tab === 'orders') {
-    return (
-      <div>
-        <div className="fixed bottom-4 left-4 z-50">
-          <button onClick={() => setTab('inventory')} className="bg-gray-900 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
-            ← Admin
-          </button>
-        </div>
-        <FohView />
-      </div>
-    );
-  }
-
   if (tab === 'eod') {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -348,7 +335,6 @@ export function AdminView() {
         <div className="flex gap-2 overflow-x-auto pb-1">
           {([
             { id: 'inventory' as const, label: 'Inventory', icon: Package },
-            { id: 'orders' as const, label: 'Orders', icon: ShoppingCart },
             { id: 'waste' as const, label: 'Waste', icon: AlertTriangle, count: todayWaste.length },
             { id: 'messages' as const, label: 'Messages', icon: MessageSquare, count: unreadCount },
             { id: 'staff' as const, label: 'Staff', icon: Users },
@@ -438,11 +424,11 @@ export function AdminView() {
 
             {/* Category filters */}
             <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
-              <button onClick={() => setCategoryFilter('all')} className={cn('flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition', categoryFilter === 'all' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 border border-gray-200')}>All</button>
+              <button onClick={() => setCategoryFilter('all')} className={cn('flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition', categoryFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600')}>All</button>
               {CATEGORIES.map((cat) => {
                 const Icon = categoryIcons[cat.id] || Wine;
                 return (
-                  <button key={cat.id} onClick={() => setCategoryFilter(cat.id)} className={cn('flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition', categoryFilter === cat.id ? `${cat.darkBg} text-white` : 'bg-white text-gray-600 border border-gray-200')}>
+                  <button key={cat.id} onClick={() => setCategoryFilter(cat.id)} className={cn('flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition', categoryFilter === cat.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600')}>
                     <Icon className="w-4 h-4" /> {cat.name}
                   </button>
                 );

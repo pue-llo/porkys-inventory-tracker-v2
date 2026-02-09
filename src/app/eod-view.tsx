@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import {
-  DollarSign, ShoppingCart, Users, AlertTriangle, Save, Download, FileText, ChevronDown, ChevronUp,
+  DollarSign, ShoppingCart, Users, AlertTriangle, Save, Download, FileText, ChevronDown, ChevronUp, Package,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getTodayKey, formatDate } from '@/lib/utils';
@@ -12,7 +12,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { useCurrencyStore } from '@/hooks/use-currency';
 import { useAuthStore } from '@/stores/auth-store';
 import { cn } from '@/lib/utils';
-import type { EodReport } from '@/types';
+import type { EodReport, BohDisbursement } from '@/types';
 
 interface EodStats {
   totalSales: number;
@@ -32,6 +32,8 @@ export function EodView({ onBack }: { onBack: () => void }) {
   const [pastReports, setPastReports] = useState<EodReport[]>([]);
   const [showPast, setShowPast] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [disbursements, setDisbursements] = useState<BohDisbursement[]>([]);
+  const [showDisbursements, setShowDisbursements] = useState(true);
 
   const formatMoney = useCurrencyStore((s) => s.format);
   const currentStaff = useAuthStore((s) => s.currentStaff);
@@ -40,6 +42,7 @@ export function EodView({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     loadEodData();
     loadPastReports();
+    loadDisbursements();
   }, []);
 
   const loadEodData = async () => {
@@ -133,6 +136,15 @@ export function EodView({ onBack }: { onBack: () => void }) {
     setPastReports(data || []);
   };
 
+  const loadDisbursements = async () => {
+    const { data } = await supabase
+      .from('boh_disbursements')
+      .select('*')
+      .eq('date', today)
+      .order('created_at', { ascending: false });
+    setDisbursements(data || []);
+  };
+
   const handleSave = async () => {
     if (!stats) return;
     setIsSaving(true);
@@ -198,6 +210,45 @@ export function EodView({ onBack }: { onBack: () => void }) {
           Staff: s.staff_name, Orders: s.orders, Revenue: s.revenue,
         }))), 'Staff Performance');
       }
+    }
+
+    // BOH Disbursements sheets
+    if (disbursements.length > 0) {
+      // Raw disbursement log
+      const bohData = disbursements.map((d) => ({
+        Time: d.created_at ? new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+        Product: d.product_name,
+        Quantity: d.quantity,
+        'BOH Staff': d.boh_staff_name || '',
+        'FOH Staff': d.foh_staff_name || '',
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(bohData), 'BOH Disbursements');
+
+      // By-product summary
+      const byProduct: Record<string, { name: string; qty: number }> = {};
+      disbursements.forEach((d) => {
+        if (!byProduct[d.product_id]) byProduct[d.product_id] = { name: d.product_name, qty: 0 };
+        byProduct[d.product_id].qty += d.quantity;
+      });
+      const productSummary = Object.values(byProduct)
+        .sort((a, b) => b.qty - a.qty)
+        .map((p) => ({ Product: p.name, 'Total Disbursed': p.qty }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(productSummary), 'BOH By Product');
+
+      // By-FOH-staff summary
+      const byStaff: Record<string, Record<string, number>> = {};
+      disbursements.forEach((d) => {
+        const name = d.foh_staff_name || 'Unknown';
+        if (!byStaff[name]) byStaff[name] = {};
+        byStaff[name][d.product_name] = (byStaff[name][d.product_name] || 0) + d.quantity;
+      });
+      const staffSummary: { 'FOH Staff': string; Product: string; Quantity: number }[] = [];
+      Object.entries(byStaff).forEach(([staffName, products]) => {
+        Object.entries(products).forEach(([productName, qty]) => {
+          staffSummary.push({ 'FOH Staff': staffName, Product: productName, Quantity: qty });
+        });
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(staffSummary), 'BOH By FOH Staff');
     }
 
     XLSX.writeFile(wb, `eod_report_${today}.xlsx`);
@@ -346,6 +397,114 @@ export function EodView({ onBack }: { onBack: () => void }) {
           </div>
         </div>
       )}
+
+      {/* BOH Disbursements */}
+      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <button
+          onClick={() => setShowDisbursements(!showDisbursements)}
+          className="w-full flex items-center justify-between p-4 text-sm font-semibold text-gray-900 hover:bg-gray-50 transition"
+        >
+          <div className="flex items-center gap-2">
+            <Package className="w-4 h-4 text-orange-500" />
+            <span>BOH Disbursements ({disbursements.reduce((s, d) => s + d.quantity, 0)} items)</span>
+          </div>
+          {showDisbursements ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        {showDisbursements && (
+          disbursements.length === 0 ? (
+            <div className="px-4 pb-4">
+              <div className="text-center py-6 text-gray-400">
+                <Package className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No disbursements today</p>
+                <p className="text-xs mt-1">BOH handoffs to FOH will appear here</p>
+              </div>
+            </div>
+          ) : (
+            <div className="px-4 pb-4 space-y-4">
+              {/* Summary stats */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <p className="text-xl font-bold text-gray-900">{disbursements.reduce((s, d) => s + d.quantity, 0)}</p>
+                  <p className="text-xs text-gray-500">Items Sent</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <p className="text-xl font-bold text-gray-900">{new Set(disbursements.map((d) => d.product_id)).size}</p>
+                  <p className="text-xs text-gray-500">Products</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <p className="text-xl font-bold text-gray-900">{new Set(disbursements.map((d) => d.foh_staff_name).filter(Boolean)).size}</p>
+                  <p className="text-xs text-gray-500">FOH Staff</p>
+                </div>
+              </div>
+
+              {/* By Product */}
+              <div>
+                <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">By Product</h4>
+                <div className="space-y-1.5">
+                  {(() => {
+                    const byProduct: Record<string, { name: string; quantity: number }> = {};
+                    disbursements.forEach((d) => {
+                      if (!byProduct[d.product_id]) byProduct[d.product_id] = { name: d.product_name, quantity: 0 };
+                      byProduct[d.product_id].quantity += d.quantity;
+                    });
+                    return Object.values(byProduct).sort((a, b) => b.quantity - a.quantity).map((item, i) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold',
+                            i === 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'
+                          )}>
+                            {i + 1}
+                          </span>
+                          <span className="text-sm text-gray-900">{item.name}</span>
+                        </div>
+                        <span className="text-sm font-bold text-gray-900">{item.quantity}</span>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* By FOH Staff */}
+              <div>
+                <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">By FOH Staff</h4>
+                <div className="space-y-2">
+                  {(() => {
+                    const byStaff: Record<string, { name: string; items: Record<string, { name: string; quantity: number }> }> = {};
+                    disbursements.forEach((d) => {
+                      const staffName = d.foh_staff_name || 'Unknown';
+                      const staffId = d.foh_staff_id || staffName;
+                      if (!byStaff[staffId]) byStaff[staffId] = { name: staffName, items: {} };
+                      if (!byStaff[staffId].items[d.product_id]) byStaff[staffId].items[d.product_id] = { name: d.product_name, quantity: 0 };
+                      byStaff[staffId].items[d.product_id].quantity += d.quantity;
+                    });
+                    return Object.values(byStaff).sort((a, b) => a.name.localeCompare(b.name)).map((staff) => {
+                      const staffItems = Object.values(staff.items).sort((a, b) => b.quantity - a.quantity);
+                      const staffTotal = staffItems.reduce((sum, item) => sum + item.quantity, 0);
+                      return (
+                        <div key={staff.name} className="p-2.5 bg-gray-50 rounded-xl">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-sm font-semibold text-gray-900">{staff.name}</span>
+                            <span className="text-xs font-bold text-gray-500">{staffTotal} items</span>
+                          </div>
+                          <div className="space-y-0.5">
+                            {staffItems.map((item) => (
+                              <div key={item.name} className="flex items-center justify-between text-xs text-gray-600">
+                                <span>{item.name}</span>
+                                <span className="font-medium">{item.quantity}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            </div>
+          )
+        )}
+      </div>
 
       {/* Notes */}
       <div className="bg-white rounded-xl p-4 border border-gray-100">

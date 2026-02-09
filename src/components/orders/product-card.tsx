@@ -65,9 +65,9 @@ export function ProductCard({ product, onTap, onLongPress, showAnimation, mode =
         'product-card relative bg-white rounded-2xl p-3 border text-left transition-all duration-150 w-full',
         'hover:shadow-md active:scale-[0.97]',
         showAnimation && 'animate-pop',
-        stockLevel === 'critical' && 'border-red-200 bg-red-50/30',
-        stockLevel === 'low' && 'border-amber-200 bg-amber-50/30',
-        stockLevel === 'ok' && 'border-gray-100'
+        mode === 'foh' && stockLevel === 'critical' ? 'border-red-200 bg-red-50/30' :
+        mode === 'foh' && stockLevel === 'low' ? 'border-amber-200 bg-amber-50/30' :
+        'border-gray-100'
       )}
       style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
     >
@@ -86,30 +86,34 @@ export function ProductCard({ product, onTap, onLongPress, showAnimation, mode =
 
       {/* Stock info */}
       <div className="flex items-end justify-between">
-        <div>
-          <p className={cn(
-            'text-lg font-bold',
-            stockLevel === 'critical' ? 'text-red-600' :
-            stockLevel === 'low' ? 'text-amber-600' :
-            'text-gray-900'
-          )}>
-            {product.remaining}
-          </p>
-          <p className="text-xs text-gray-400">of {product.totalUnits}</p>
-        </div>
+        {mode === 'foh' ? (
+          <div>
+            <p className={cn(
+              'text-lg font-bold',
+              stockLevel === 'critical' ? 'text-red-600' :
+              stockLevel === 'low' ? 'text-amber-600' :
+              'text-gray-900'
+            )}>
+              {product.remaining}
+            </p>
+            <p className="text-xs text-gray-400">of {product.totalUnits}</p>
+          </div>
+        ) : (
+          <div />
+        )}
         <p className="text-xs font-medium text-gray-500">{formatMoney(product.price_per_unit)}</p>
       </div>
 
-      {/* Low stock warning */}
-      {stockLevel !== 'ok' && (
+      {/* Low stock warning (FOH only) */}
+      {mode === 'foh' && stockLevel !== 'ok' && (
         <div className={cn(
           'absolute top-2 right-2 w-2 h-2 rounded-full',
           stockLevel === 'critical' ? 'bg-red-500 animate-pulse-dot' : 'bg-amber-400'
         )} />
       )}
 
-      {/* Par level warning */}
-      {product.par_level > 0 && product.remaining <= product.par_level && stockLevel === 'ok' && (
+      {/* Par level warning (FOH only) */}
+      {mode === 'foh' && product.par_level > 0 && product.remaining <= product.par_level && stockLevel === 'ok' && (
         <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-400" />
       )}
 

@@ -7,25 +7,21 @@ import {
 import { useAuthStore } from '@/stores/auth-store';
 import { useInventoryStore } from '@/stores/inventory-store';
 import { useBohStore } from '@/stores/boh-store';
-import { useCurrencyStore } from '@/hooks/use-currency';
 import { ProductCard } from '@/components/orders/product-card';
-import { StaffMessageModal } from '@/components/auth/staff-message-modal';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { cn, formatTime, formatRelativeTime } from '@/lib/utils';
+import { cn, formatTime } from '@/lib/utils';
 import { CATEGORIES, getCategoryInfo } from '@/lib/constants';
 import type { ProductWithCalc, StaffProfile } from '@/types';
 
 export function BohView() {
   const [viewMode, setViewMode] = useState<'products' | 'history'>('products');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const currentStaff = useAuthStore((s) => s.currentStaff);
   const allStaff = useAuthStore((s) => s.allStaff);
   const logout = useAuthStore((s) => s.logout);
   const getProductsWithCalc = useInventoryStore((s) => s.getProductsWithCalc);
-  const formatMoney = useCurrencyStore((s) => s.format);
 
   const cart = useBohStore((s) => s.cart);
   const addToCart = useBohStore((s) => s.addToCart);
@@ -41,10 +37,9 @@ export function BohView() {
   const lastConfirmedFoh = useBohStore((s) => s.lastConfirmedFoh);
   const getTodayHistory = useBohStore((s) => s.getTodayHistory);
   const getTodayTotal = useBohStore((s) => s.getTodayTotal);
-  const getTodayCount = useBohStore((s) => s.getTodayCount);
   const removeDisbursement = useBohStore((s) => s.removeDisbursement);
 
-  const products = getProductsWithCalc(categoryFilter).filter((p) => p.remaining > 0);
+  const products = getProductsWithCalc(categoryFilter);
   const cartTotal = getCartTotal();
   const fohStaff = allStaff.filter((s) => s.role === 'foh');
   const todayHistory = getTodayHistory();
@@ -153,7 +148,7 @@ export function BohView() {
                 <span className="font-bold">{getTodayTotal()}</span>
                 <span className="text-orange-200 ml-1">sent today</span>
               </div>
-              <button onClick={() => setShowLogoutModal(true)} className="p-2 rounded-lg hover:bg-white/10 transition">
+              <button onClick={logout} className="p-2 rounded-lg hover:bg-white/10 transition">
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
@@ -184,11 +179,11 @@ export function BohView() {
 
         {viewMode === 'products' && (
           <div className="flex gap-2 overflow-x-auto pb-1">
-            <button onClick={() => setCategoryFilter('all')} className={cn('flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition', categoryFilter === 'all' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 border border-gray-200')}>All</button>
+            <button onClick={() => setCategoryFilter('all')} className={cn('flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition', categoryFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600')}>All</button>
             {CATEGORIES.map((cat) => {
               const Icon = categoryIcons[cat.id] || Wine;
               return (
-                <button key={cat.id} onClick={() => setCategoryFilter(cat.id)} className={cn('flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition', categoryFilter === cat.id ? `${cat.darkBg} text-white` : 'bg-white text-gray-600 border border-gray-200')}>
+                <button key={cat.id} onClick={() => setCategoryFilter(cat.id)} className={cn('flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition', categoryFilter === cat.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600')}>
                   <Icon className="w-4 h-4" /> {cat.name}
                 </button>
               );
@@ -199,7 +194,7 @@ export function BohView() {
 
       {/* Content */}
       <main className="p-3 pb-32">
-        {viewMode === 'products' ? (
+        {viewMode === 'products' && (
           products.length === 0 ? (
             <EmptyState emoji="📦" title="No products available" />
           ) : (
@@ -215,7 +210,9 @@ export function BohView() {
               ))}
             </div>
           )
-        ) : (
+        )}
+
+        {viewMode === 'history' && (
           todayHistory.length === 0 ? (
             <EmptyState emoji="📋" title="No disbursements today" description="Items you send to FOH will show here" />
           ) : (
@@ -242,6 +239,7 @@ export function BohView() {
             </div>
           )
         )}
+
       </main>
 
       {/* Floating cart bar */}
@@ -279,14 +277,6 @@ export function BohView() {
         </div>
       )}
 
-      {/* Logout message modal */}
-      <StaffMessageModal
-        isOpen={showLogoutModal}
-        onClose={() => setShowLogoutModal(false)}
-        onLogout={logout}
-        staffId={currentStaff?.id || ''}
-        staffName={currentStaff?.name || ''}
-      />
     </div>
   );
 }
