@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { Users, Clock } from 'lucide-react';
 import { cn, getTableDuration, formatTime } from '@/lib/utils';
 import { useCurrencyStore } from '@/hooks/use-currency';
@@ -10,7 +11,7 @@ interface TableCardProps {
   onTap: (tableId: string) => void;
 }
 
-export function TableCard({ table, onTap }: TableCardProps) {
+export const TableCard = React.memo(function TableCard({ table, onTap }: TableCardProps) {
   const formatMoney = useCurrencyStore((s) => s.format);
   const duration = getTableDuration(table.created_at, table.closed_at);
 
@@ -79,4 +80,4 @@ export function TableCard({ table, onTap }: TableCardProps) {
       )}
     </button>
   );
-}
+});

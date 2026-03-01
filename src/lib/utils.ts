@@ -43,10 +43,20 @@ export function getFullTimestamp(iso: string): string {
 }
 
 /**
- * Get today's date key in YYYY-MM-DD format (for daily scoping)
+ * Get today's date key in YYYY-MM-DD format (for daily scoping).
+ * Cached for 60 seconds to avoid repeated Date + format calls.
  */
+let _todayKeyCache: string | null = null;
+let _todayKeyCacheTime: number = 0;
+
 export function getTodayKey(): string {
-  return format(new Date(), 'yyyy-MM-dd');
+  const now = Date.now();
+  if (_todayKeyCache && now - _todayKeyCacheTime < 60_000) {
+    return _todayKeyCache;
+  }
+  _todayKeyCache = format(new Date(), 'yyyy-MM-dd');
+  _todayKeyCacheTime = now;
+  return _todayKeyCache;
 }
 
 // ============================================
@@ -85,6 +95,8 @@ export interface CalcResult {
   totalUnits: number;
   remaining: number;
   sold: number;
+  wasted: number;
+  restocked: number;
   expectedValue: number;
   profit: number;
 }
@@ -105,7 +117,7 @@ export function calculateFields(
   const expectedValue = sold * (product.price_per_unit || 0);
   const profit = (product.price_per_unit - (product.cost_per_unit || 0)) * sold;
 
-  return { totalUnits, remaining: Math.max(0, remaining), sold, expectedValue, profit };
+  return { totalUnits, remaining: Math.max(0, remaining), sold, wasted, restocked, expectedValue, profit };
 }
 
 /**
@@ -144,4 +156,10 @@ export function cn(...classes: (string | false | null | undefined)[]): string {
 
 export function generateId(): string {
   return crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+export function haptic(pattern: number | number[] = 10): void {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    navigator.vibrate(pattern);
+  }
 }

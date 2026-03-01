@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Wine, Beer, CupSoda } from 'lucide-react';
 import { cn, getStockLevel } from '@/lib/utils';
 import { getCategoryInfo } from '@/lib/constants';
@@ -22,7 +22,7 @@ const categoryIcons: Record<string, typeof Wine> = {
   fountain: CupSoda,
 };
 
-export function ProductCard({ product, onTap, onLongPress, showAnimation, mode = 'foh', cartQuantity = 0 }: ProductCardProps) {
+export const ProductCard = React.memo(function ProductCard({ product, onTap, onLongPress, showAnimation, mode = 'foh', cartQuantity = 0 }: ProductCardProps) {
   const formatMoney = useCurrencyStore((s) => s.format);
   const cat = getCategoryInfo(product.category_id);
   const stockLevel = getStockLevel(product.remaining, product.totalUnits);
@@ -132,4 +132,4 @@ export function ProductCard({ product, onTap, onLongPress, showAnimation, mode =
       )}
     </button>
   );
-}
+});

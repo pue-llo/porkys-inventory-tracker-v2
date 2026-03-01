@@ -7,6 +7,7 @@ interface InventoryState {
   // State
   products: Product[];
   categories: Category[];
+  categoryMap: Record<string, Category>; // O(1) lookup by category id
   dailyInventory: Record<string, InventoryDaily>; // keyed by product_id
   wasteLog: WasteLog[];
   isLoading: boolean;
@@ -18,6 +19,11 @@ interface InventoryState {
   getDailyInventory: (productId: string) => InventoryDaily | undefined;
   getTodayWaste: () => WasteLog[];
   getTotalWasteValue: () => number;
+
+  // Granular realtime update methods
+  upsertDailyInventory: (row: InventoryDaily) => void;
+  upsertWasteLog: (entry: WasteLog) => void;
+  removeWasteLogEntry: (id: string) => void;
 
   // Actions
   loadProducts: () => Promise<void>;
@@ -37,6 +43,7 @@ interface InventoryState {
 export const useInventoryStore = create<InventoryState>((set, get) => ({
   products: [],
   categories: [],
+  categoryMap: {},
   dailyInventory: {},
   wasteLog: [],
   isLoading: false,
@@ -44,7 +51,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   // ---- Computed ----
   getProductsWithCalc: (categoryFilter?: string, searchTerm?: string) => {
-    const { products, dailyInventory, categories } = get();
+    const { products, dailyInventory, categoryMap } = get();
     let filtered = products.filter((p) => p.is_active);
 
     if (categoryFilter && categoryFilter !== 'all') {
@@ -59,7 +66,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     return filtered.map((p) => {
       const inv = dailyInventory[p.id];
       const calc = calculateFields(p, inv);
-      const category = categories.find((c) => c.id === p.category_id);
+      const category = categoryMap[p.category_id];
       return { ...p, ...calc, category, inventory: inv };
     });
   },
@@ -80,6 +87,36 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     return get().wasteLog
       .filter((w) => w.date === today)
       .reduce((sum, w) => sum + w.value_lost, 0);
+  },
+
+  // ---- Granular realtime update methods ----
+  upsertDailyInventory: (row: InventoryDaily) => {
+    const today = getTodayKey();
+    if (row.date !== today) return;
+    set((state) => ({
+      dailyInventory: {
+        ...state.dailyInventory,
+        [row.product_id]: row,
+      },
+    }));
+  },
+
+  upsertWasteLog: (entry: WasteLog) => {
+    set((state) => {
+      const idx = state.wasteLog.findIndex((w) => w.id === entry.id);
+      if (idx >= 0) {
+        const updated = [...state.wasteLog];
+        updated[idx] = entry;
+        return { wasteLog: updated };
+      }
+      return { wasteLog: [entry, ...state.wasteLog] };
+    });
+  },
+
+  removeWasteLogEntry: (id: string) => {
+    set((state) => ({
+      wasteLog: state.wasteLog.filter((w) => w.id !== id),
+    }));
   },
 
   // ---- Actions ----
@@ -108,7 +145,12 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
         .order('sort_order');
 
       if (error) throw error;
-      set({ categories: data || [] });
+      const categories = data || [];
+      const categoryMap: Record<string, Category> = {};
+      categories.forEach((c) => {
+        categoryMap[c.id] = c;
+      });
+      set({ categories, categoryMap });
     } catch (err: any) {
       set({ error: err.message });
     }
@@ -246,27 +288,44 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     const inv = get().dailyInventory[productId];
     if (!inv) return;
 
+    // Optimistic update for UI responsiveness
+    set((state) => ({
+      dailyInventory: {
+        ...state.dailyInventory,
+        [productId]: { ...inv, sold: inv.sold + quantity },
+      },
+    }));
+
     try {
+      // Fetch fresh value to narrow race window
+      const { data: fresh } = await supabase
+        .from('inventory_daily')
+        .select('sold')
+        .eq('product_id', productId)
+        .eq('date', today)
+        .single();
+
+      if (!fresh) return;
+
       const { error } = await supabase
         .from('inventory_daily')
         .update({
-          sold: inv.sold + quantity,
+          sold: fresh.sold + quantity,
           updated_at: new Date().toISOString(),
         })
         .eq('product_id', productId)
         .eq('date', today);
 
       if (error) throw error;
-
-      // Optimistic update
+    } catch (err: any) {
+      // Revert optimistic update on failure
       set((state) => ({
         dailyInventory: {
           ...state.dailyInventory,
-          [productId]: { ...inv, sold: inv.sold + quantity },
+          [productId]: { ...inv, sold: inv.sold },
         },
+        error: err.message,
       }));
-    } catch (err: any) {
-      set({ error: err.message });
     }
   },
 
@@ -304,26 +363,44 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     const inv = get().dailyInventory[productId];
     if (!inv) return;
 
+    // Optimistic update for UI responsiveness
+    set((state) => ({
+      dailyInventory: {
+        ...state.dailyInventory,
+        [productId]: { ...inv, restocked: inv.restocked + quantity },
+      },
+    }));
+
     try {
+      // Fetch fresh value to narrow race window
+      const { data: fresh } = await supabase
+        .from('inventory_daily')
+        .select('restocked')
+        .eq('product_id', productId)
+        .eq('date', today)
+        .single();
+
+      if (!fresh) return;
+
       const { error } = await supabase
         .from('inventory_daily')
         .update({
-          restocked: inv.restocked + quantity,
+          restocked: fresh.restocked + quantity,
           updated_at: new Date().toISOString(),
         })
         .eq('product_id', productId)
         .eq('date', today);
 
       if (error) throw error;
-
+    } catch (err: any) {
+      // Revert optimistic update on failure
       set((state) => ({
         dailyInventory: {
           ...state.dailyInventory,
-          [productId]: { ...inv, restocked: inv.restocked + quantity },
+          [productId]: { ...inv, restocked: inv.restocked },
         },
+        error: err.message,
       }));
-    } catch (err: any) {
-      set({ error: err.message });
     }
   },
 
@@ -363,27 +440,36 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       });
       if (wasteError) throw wasteError;
 
-      // Update inventory_daily.wasted
+      // Update inventory_daily.wasted — fetch fresh value to narrow race window
       const inv = get().dailyInventory[productId];
       if (inv) {
-        const { error: invError } = await supabase
-          .from('inventory_daily')
-          .update({
-            wasted: inv.wasted + quantity,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('product_id', productId)
-          .eq('date', today);
-
-        if (invError) throw invError;
-
-        // Optimistic update
+        // Optimistic update for UI responsiveness
         set((state) => ({
           dailyInventory: {
             ...state.dailyInventory,
             [productId]: { ...inv, wasted: inv.wasted + quantity },
           },
         }));
+
+        const { data: fresh } = await supabase
+          .from('inventory_daily')
+          .select('wasted')
+          .eq('product_id', productId)
+          .eq('date', today)
+          .single();
+
+        if (fresh) {
+          const { error: invError } = await supabase
+            .from('inventory_daily')
+            .update({
+              wasted: fresh.wasted + quantity,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('product_id', productId)
+            .eq('date', today);
+
+          if (invError) throw invError;
+        }
       }
 
       // Refresh waste log

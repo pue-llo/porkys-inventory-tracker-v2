@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { BarChart3, TrendingUp, Clock, Users, AlertTriangle } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -205,8 +205,8 @@ export function AnalyticsView({ onBack }: { onBack: () => void }) {
     return <EmptyState emoji="📊" title="No data available" />;
   }
 
-  const totalRevenue = data.dailySales.reduce((s, d) => s + d.revenue, 0);
-  const totalOrders = data.dailySales.reduce((s, d) => s + d.orders, 0);
+  const totalRevenue = useMemo(() => data.dailySales.reduce((s, d) => s + d.revenue, 0), [data.dailySales]);
+  const totalOrders = useMemo(() => data.dailySales.reduce((s, d) => s + d.orders, 0), [data.dailySales]);
 
   return (
     <div className="space-y-4">

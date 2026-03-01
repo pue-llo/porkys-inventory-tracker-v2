@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { useCurrencyStore } from '@/hooks/use-currency';
 import { useTableStore } from '@/stores/table-store';
+import { haptic } from '@/lib/utils';
 import type { ProductWithCalc } from '@/types';
 
 interface SaleConfirmModalProps {
@@ -49,6 +50,7 @@ export function SaleConfirmModal({
       else return;
     }
 
+    haptic(10);
     onConfirm(product.id, quantity, tableId!);
     setQuantity(1);
     setSelectedTableId(null);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   DollarSign, ShoppingCart, Users, AlertTriangle, Save, Download, FileText, ChevronDown, ChevronUp, Package,
 } from 'lucide-react';
@@ -28,6 +28,7 @@ export function EodView({ onBack }: { onBack: () => void }) {
   const [cashInDrawer, setCashInDrawer] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [savedReport, setSavedReport] = useState<EodReport | null>(null);
   const [pastReports, setPastReports] = useState<EodReport[]>([]);
   const [showPast, setShowPast] = useState(false);
@@ -181,6 +182,9 @@ export function EodView({ onBack }: { onBack: () => void }) {
   };
 
   const handleExportEod = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
     const XLSX = (await import('xlsx')).default;
     const wb = XLSX.utils.book_new();
 
@@ -252,6 +256,9 @@ export function EodView({ onBack }: { onBack: () => void }) {
     }
 
     XLSX.writeFile(wb, `eod_report_${today}.xlsx`);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (isLoading) {
@@ -271,9 +278,34 @@ export function EodView({ onBack }: { onBack: () => void }) {
     return <EmptyState emoji="📊" title="No data available" description="No activity recorded for today" />;
   }
 
-  const cash = parseInt(cashInDrawer) || 0;
+  const cash = useMemo(() => parseInt(cashInDrawer) || 0, [cashInDrawer]);
   const expectedCash = stats.totalSales;
-  const variance = cash - expectedCash;
+  const variance = useMemo(() => cash - expectedCash, [cash, expectedCash]);
+
+  const disbursementsByProduct = useMemo(() => {
+    const byProduct: Record<string, { name: string; quantity: number }> = {};
+    disbursements.forEach((d) => {
+      if (!byProduct[d.product_id]) byProduct[d.product_id] = { name: d.product_name, quantity: 0 };
+      byProduct[d.product_id].quantity += d.quantity;
+    });
+    return Object.values(byProduct).sort((a, b) => b.quantity - a.quantity);
+  }, [disbursements]);
+
+  const disbursementsByStaff = useMemo(() => {
+    const byStaff: Record<string, { name: string; items: Record<string, { name: string; quantity: number }> }> = {};
+    disbursements.forEach((d) => {
+      const staffName = d.foh_staff_name || 'Unknown';
+      const staffId = d.foh_staff_id || staffName;
+      if (!byStaff[staffId]) byStaff[staffId] = { name: staffName, items: {} };
+      if (!byStaff[staffId].items[d.product_id]) byStaff[staffId].items[d.product_id] = { name: d.product_name, quantity: 0 };
+      byStaff[staffId].items[d.product_id].quantity += d.quantity;
+    });
+    return Object.values(byStaff).sort((a, b) => a.name.localeCompare(b.name)).map((staff) => {
+      const staffItems = Object.values(staff.items).sort((a, b) => b.quantity - a.quantity);
+      const staffTotal = staffItems.reduce((sum, item) => sum + item.quantity, 0);
+      return { name: staff.name, items: staffItems, total: staffTotal };
+    });
+  }, [disbursements]);
 
   return (
     <div className="space-y-4">
@@ -284,7 +316,7 @@ export function EodView({ onBack }: { onBack: () => void }) {
           <p className="text-sm text-gray-500">{formatDate(today + 'T00:00:00')}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={handleExportEod}>
+          <Button variant="secondary" size="sm" onClick={handleExportEod} isLoading={isExporting} disabled={isExporting}>
             <Download className="w-4 h-4" />
           </Button>
           <Button size="sm" onClick={onBack} variant="ghost">Back</Button>
@@ -441,27 +473,20 @@ export function EodView({ onBack }: { onBack: () => void }) {
               <div>
                 <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">By Product</h4>
                 <div className="space-y-1.5">
-                  {(() => {
-                    const byProduct: Record<string, { name: string; quantity: number }> = {};
-                    disbursements.forEach((d) => {
-                      if (!byProduct[d.product_id]) byProduct[d.product_id] = { name: d.product_name, quantity: 0 };
-                      byProduct[d.product_id].quantity += d.quantity;
-                    });
-                    return Object.values(byProduct).sort((a, b) => b.quantity - a.quantity).map((item, i) => (
-                      <div key={i} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={cn(
-                            'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold',
-                            i === 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'
-                          )}>
-                            {i + 1}
-                          </span>
-                          <span className="text-sm text-gray-900">{item.name}</span>
-                        </div>
-                        <span className="text-sm font-bold text-gray-900">{item.quantity}</span>
+                  {disbursementsByProduct.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold',
+                          i === 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'
+                        )}>
+                          {i + 1}
+                        </span>
+                        <span className="text-sm text-gray-900">{item.name}</span>
                       </div>
-                    ));
-                  })()}
+                      <span className="text-sm font-bold text-gray-900">{item.quantity}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -469,36 +494,22 @@ export function EodView({ onBack }: { onBack: () => void }) {
               <div>
                 <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">By FOH Staff</h4>
                 <div className="space-y-2">
-                  {(() => {
-                    const byStaff: Record<string, { name: string; items: Record<string, { name: string; quantity: number }> }> = {};
-                    disbursements.forEach((d) => {
-                      const staffName = d.foh_staff_name || 'Unknown';
-                      const staffId = d.foh_staff_id || staffName;
-                      if (!byStaff[staffId]) byStaff[staffId] = { name: staffName, items: {} };
-                      if (!byStaff[staffId].items[d.product_id]) byStaff[staffId].items[d.product_id] = { name: d.product_name, quantity: 0 };
-                      byStaff[staffId].items[d.product_id].quantity += d.quantity;
-                    });
-                    return Object.values(byStaff).sort((a, b) => a.name.localeCompare(b.name)).map((staff) => {
-                      const staffItems = Object.values(staff.items).sort((a, b) => b.quantity - a.quantity);
-                      const staffTotal = staffItems.reduce((sum, item) => sum + item.quantity, 0);
-                      return (
-                        <div key={staff.name} className="p-2.5 bg-gray-50 rounded-xl">
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-sm font-semibold text-gray-900">{staff.name}</span>
-                            <span className="text-xs font-bold text-gray-500">{staffTotal} items</span>
+                  {disbursementsByStaff.map((staff) => (
+                    <div key={staff.name} className="p-2.5 bg-gray-50 rounded-xl">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-sm font-semibold text-gray-900">{staff.name}</span>
+                        <span className="text-xs font-bold text-gray-500">{staff.total} items</span>
+                      </div>
+                      <div className="space-y-0.5">
+                        {staff.items.map((item) => (
+                          <div key={item.name} className="flex items-center justify-between text-xs text-gray-600">
+                            <span>{item.name}</span>
+                            <span className="font-medium">{item.quantity}</span>
                           </div>
-                          <div className="space-y-0.5">
-                            {staffItems.map((item) => (
-                              <div key={item.name} className="flex items-center justify-between text-xs text-gray-600">
-                                <span>{item.name}</span>
-                                <span className="font-medium">{item.quantity}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

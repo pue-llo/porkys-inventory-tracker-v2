@@ -17,6 +17,12 @@ interface TableState {
   getTable: (id: string) => TableWithOrders | undefined;
   getNextTableNumber: () => number;
 
+  // Granular realtime update methods
+  upsertTable: (table: Table) => void;
+  removeTable: (tableId: string) => void;
+  upsertOrder: (order: Order) => void;
+  removeOrderById: (orderId: string) => void;
+
   // Actions
   loadTables: () => Promise<void>;
   loadOrders: () => Promise<void>;
@@ -79,6 +85,59 @@ export const useTableStore = create<TableState>((set, get) => ({
     const todayTables = tables.filter((t) => t.date === getTodayKey());
     if (todayTables.length === 0) return 1;
     return Math.max(...todayTables.map((t) => t.table_number)) + 1;
+  },
+
+  // ---- Granular realtime update methods ----
+  upsertTable: (table: Table) => {
+    set((state) => {
+      const idx = state.tables.findIndex((t) => t.id === table.id);
+      if (idx >= 0) {
+        const updated = [...state.tables];
+        updated[idx] = table;
+        return { tables: updated };
+      }
+      // Only add if it's for today
+      const today = getTodayKey();
+      if (table.date !== today) return state;
+      return { tables: [...state.tables, table] };
+    });
+  },
+
+  removeTable: (tableId: string) => {
+    set((state) => ({
+      tables: state.tables.filter((t) => t.id !== tableId),
+      orders: (() => {
+        const { [tableId]: _, ...rest } = state.orders;
+        return rest;
+      })(),
+    }));
+  },
+
+  upsertOrder: (order: Order) => {
+    set((state) => {
+      const tableOrders = state.orders[order.table_id] || [];
+      const idx = tableOrders.findIndex((o) => o.id === order.id);
+      if (idx >= 0) {
+        const updated = [...tableOrders];
+        updated[idx] = order;
+        return {
+          orders: { ...state.orders, [order.table_id]: updated },
+        };
+      }
+      return {
+        orders: { ...state.orders, [order.table_id]: [order, ...tableOrders] },
+      };
+    });
+  },
+
+  removeOrderById: (orderId: string) => {
+    set((state) => {
+      const newOrders: Record<string, Order[]> = {};
+      for (const [tableId, tableOrders] of Object.entries(state.orders)) {
+        newOrders[tableId] = tableOrders.filter((o) => o.id !== orderId);
+      }
+      return { orders: newOrders };
+    });
   },
 
   // ---- Actions ----

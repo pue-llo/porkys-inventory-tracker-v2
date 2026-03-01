@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Delete, MessageSquare } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, haptic } from '@/lib/utils';
 
 interface PinPadProps {
   onSubmit: (pin: string) => void;
@@ -28,6 +28,7 @@ export function PinPad({
   const handleDigit = useCallback(
     (digit: string) => {
       if (pin.length >= pinLength) return;
+      haptic(10);
       const newPin = pin + digit;
       setPin(newPin);
 
@@ -49,6 +50,11 @@ export function PinPad({
   const handleClear = useCallback(() => {
     setPin('');
   }, []);
+
+  // Haptic feedback on error
+  useEffect(() => {
+    if (error) haptic([50, 30, 50]);
+  }, [error]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-6">

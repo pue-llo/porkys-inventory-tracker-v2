@@ -10,17 +10,24 @@
 input, textarea, select {
   -webkit-user-select: auto;
   user-select: auto;
+  font-size: 16px !important;
 }
 
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  -webkit-text-size-adjust: 100%;
 }
 
-/* Prevent rubber-banding on iOS */
+/* Contain overscroll on iOS */
 body {
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: contain;
+}
+
+/* Touch optimization for interactive elements */
+button, a, [role="button"] {
+  touch-action: manipulation;
 }
 
 /* Custom scrollbar */
@@ -43,6 +50,9 @@ body {
   font-size: 24px;
 }
 
-.product-card {
+.product-card,
+.table-card {
   touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }

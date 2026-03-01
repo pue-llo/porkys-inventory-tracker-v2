@@ -37,9 +37,10 @@ const config: Config = {
           '50%': { transform: 'scale(1.05)' },
           '100%': { transform: 'scale(1)' },
         },
+        /* pulseDot uses transform+opacity only (no boxShadow) to avoid paint triggers; add will-change: transform, opacity on the element */
         pulseDot: {
-          '0%, 100%': { opacity: '1', boxShadow: '0 0 0 0 rgba(34, 197, 94, 0.4)' },
-          '50%': { opacity: '0.8', boxShadow: '0 0 0 4px rgba(34, 197, 94, 0)' },
+          '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+          '50%': { opacity: '0.7', transform: 'scale(1.4)' },
         },
       },
     },

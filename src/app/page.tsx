@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore } from '@/stores/auth-store';
 import { useInventoryStore } from '@/stores/inventory-store';
 import { useTableStore } from '@/stores/table-store';
@@ -11,33 +13,75 @@ import { PwaInstallPrompt, OfflineBanner } from '@/components/ui/pwa-install';
 import { PinPad } from '@/components/auth/pin-pad';
 import { StaffSetup } from '@/components/auth/staff-setup';
 import { StaffMessageModal } from '@/components/auth/staff-message-modal';
-import { FohView } from './foh-view';
-import { BohView } from './boh-view';
-import { AdminView } from './admin-view';
+import Image from 'next/image';
+
+function ViewLoadingSkeleton() {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
+const FohView = dynamic(() => import('./foh-view').then(m => ({ default: m.FohView })), {
+  ssr: false,
+  loading: () => <ViewLoadingSkeleton />
+});
+const BohView = dynamic(() => import('./boh-view').then(m => ({ default: m.BohView })), {
+  ssr: false,
+  loading: () => <ViewLoadingSkeleton />
+});
+const AdminView = dynamic(() => import('./admin-view').then(m => ({ default: m.AdminView })), {
+  ssr: false,
+  loading: () => <ViewLoadingSkeleton />
+});
 
 export default function HomePage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [showEndShift, setShowEndShift] = useState(false);
   const [endShiftStaff, setEndShiftStaff] = useState<{ id: string; name: string } | null>(null);
 
-  // Auth state
-  const currentStaff = useAuthStore((s) => s.currentStaff);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const allStaff = useAuthStore((s) => s.allStaff);
-  const loadStaff = useAuthStore((s) => s.loadStaff);
-  const loginWithPin = useAuthStore((s) => s.loginWithPin);
-  const error = useAuthStore((s) => s.error);
-  const isLoading = useAuthStore((s) => s.isLoading);
-  const clearError = useAuthStore((s) => s.clearError);
+  // Auth state (grouped selector)
+  const {
+    currentStaff, isAuthenticated, allStaff,
+    loadStaff, loginWithPin, error, isLoading, clearError,
+  } = useAuthStore(
+    useShallow((s) => ({
+      currentStaff: s.currentStaff,
+      isAuthenticated: s.isAuthenticated,
+      allStaff: s.allStaff,
+      loadStaff: s.loadStaff,
+      loginWithPin: s.loginWithPin,
+      error: s.error,
+      isLoading: s.isLoading,
+      clearError: s.clearError,
+    }))
+  );
 
-  // Data loaders
-  const loadProducts = useInventoryStore((s) => s.loadProducts);
-  const loadCategories = useInventoryStore((s) => s.loadCategories);
-  const loadDailyInventory = useInventoryStore((s) => s.loadDailyInventory);
-  const loadWasteLog = useInventoryStore((s) => s.loadWasteLog);
-  const initializeDailyInventory = useInventoryStore((s) => s.initializeDailyInventory);
-  const loadTables = useTableStore((s) => s.loadTables);
-  const loadOrders = useTableStore((s) => s.loadOrders);
+  // Inventory loaders (grouped selector)
+  const {
+    loadProducts, loadCategories, loadDailyInventory,
+    loadWasteLog, initializeDailyInventory,
+  } = useInventoryStore(
+    useShallow((s) => ({
+      loadProducts: s.loadProducts,
+      loadCategories: s.loadCategories,
+      loadDailyInventory: s.loadDailyInventory,
+      loadWasteLog: s.loadWasteLog,
+      initializeDailyInventory: s.initializeDailyInventory,
+    }))
+  );
+
+  // Table loaders (grouped selector)
+  const { loadTables, loadOrders, tables } = useTableStore(
+    useShallow((s) => ({
+      loadTables: s.loadTables,
+      loadOrders: s.loadOrders,
+      tables: s.tables,
+    }))
+  );
+
+  // BOH loader
   const loadDisbursements = useBohStore((s) => s.loadDisbursements);
 
   // Realtime subscriptions
@@ -63,7 +107,6 @@ export default function HomePage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load orders once tables are loaded
-  const tables = useTableStore((s) => s.tables);
   useEffect(() => {
     if (tables.length > 0) {
       loadOrders();
@@ -120,7 +163,7 @@ export default function HomePage() {
                 className="w-full flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition text-left"
               >
                 {staff.photo_url ? (
-                  <img src={staff.photo_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                  <Image src={staff.photo_url} alt="" width={40} height={40} className="rounded-full object-cover" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 font-bold">
                     {staff.name.charAt(0)}

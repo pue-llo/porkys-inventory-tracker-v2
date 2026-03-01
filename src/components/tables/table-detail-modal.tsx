@@ -9,7 +9,7 @@ import { useCurrencyStore } from '@/hooks/use-currency';
 import { useTableStore } from '@/stores/table-store';
 import { useInventoryStore } from '@/stores/inventory-store';
 import { useAuthStore } from '@/stores/auth-store';
-import { getTableDuration, formatTime, cn } from '@/lib/utils';
+import { getTableDuration, formatTime, cn, haptic } from '@/lib/utils';
 import { getCategoryInfo } from '@/lib/constants';
 import type { TableWithOrders, Order } from '@/types';
 
@@ -56,6 +56,7 @@ export function TableDetailModal({ table, isOpen, onClose }: TableDetailModalPro
   };
 
   const handleClose = async () => {
+    haptic(10);
     await closeTable(table.id, currentStaff?.id);
     onClose();
   };

@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { EXCHANGE_RATE_API, EXCHANGE_RATE_CACHE_MS, FALLBACK_EXCHANGE_RATE } from '@/lib/constants';
 
+// Module-level in-flight promise to deduplicate concurrent fetch requests
+let _fetchPromise: Promise<number> | null = null;
+
 interface CurrencyState {
   showUSD: boolean;
   exchangeRate: number | null;
@@ -26,18 +29,27 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
       return exchangeRate;
     }
 
-    set({ isLoading: true });
-    try {
-      const response = await fetch(EXCHANGE_RATE_API);
-      const data = await response.json();
-      const rate = data.rates.COP;
-      set({ exchangeRate: rate, lastFetch: Date.now(), isLoading: false });
-      return rate;
-    } catch {
-      const fallback = exchangeRate || FALLBACK_EXCHANGE_RATE;
-      set({ exchangeRate: fallback, isLoading: false });
-      return fallback;
-    }
+    // Deduplicate in-flight request
+    if (_fetchPromise) return _fetchPromise;
+
+    _fetchPromise = (async () => {
+      set({ isLoading: true });
+      try {
+        const response = await fetch(EXCHANGE_RATE_API);
+        const data = await response.json();
+        const rate = data.rates.COP;
+        set({ exchangeRate: rate, lastFetch: Date.now(), isLoading: false });
+        return rate;
+      } catch {
+        const fallback = get().exchangeRate || FALLBACK_EXCHANGE_RATE;
+        set({ exchangeRate: fallback, isLoading: false });
+        return fallback;
+      } finally {
+        _fetchPromise = null;
+      }
+    })();
+
+    return _fetchPromise;
   },
 
   toggle: async () => {

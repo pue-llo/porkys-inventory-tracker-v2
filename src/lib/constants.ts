@@ -1,4 +1,12 @@
+import { Wine, Beer, CupSoda } from 'lucide-react';
 import type { CategoryInfo } from '@/types';
+
+/** Static mapping of category ID to Lucide icon component. Defined once to avoid re-creation on every render. */
+export const CATEGORY_ICONS: Record<string, typeof Wine> = {
+  liquor: Wine,
+  beer: Beer,
+  fountain: CupSoda,
+};
 
 export const CATEGORIES: CategoryInfo[] = [
   {

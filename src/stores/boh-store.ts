@@ -20,6 +20,10 @@ interface BohState {
   getTodayCount: (productId: string) => number;
   getTodayTotal: () => number;
 
+  // Granular realtime update methods
+  upsertDisbursement: (d: BohDisbursement) => void;
+  removeDisbursementById: (id: string) => void;
+
   // Actions
   loadDisbursements: () => Promise<void>;
   addToCart: (item: { productId: string; productName: string; categoryId: string; imageUrl: string | null }) => void;
@@ -67,6 +71,25 @@ export const useBohStore = create<BohState>((set, get) => ({
     return get()
       .disbursements.filter((d) => d.date === today)
       .reduce((sum, d) => sum + d.quantity, 0);
+  },
+
+  // ---- Granular realtime update methods ----
+  upsertDisbursement: (d: BohDisbursement) => {
+    set((state) => {
+      const idx = state.disbursements.findIndex((existing) => existing.id === d.id);
+      if (idx >= 0) {
+        const updated = [...state.disbursements];
+        updated[idx] = d;
+        return { disbursements: updated };
+      }
+      return { disbursements: [d, ...state.disbursements] };
+    });
+  },
+
+  removeDisbursementById: (id: string) => {
+    set((state) => ({
+      disbursements: state.disbursements.filter((d) => d.id !== id),
+    }));
   },
 
   // ---- Actions ----

@@ -158,7 +158,10 @@ export interface ProductWithCalc extends Product {
   totalUnits: number;
   remaining: number;
   sold: number;
+  wasted: number;
+  restocked: number;
   expectedValue: number;
+  profit: number;
 }
 
 export interface TableWithOrders extends Table {

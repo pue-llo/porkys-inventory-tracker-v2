@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import Image from 'next/image';
 import {
-  ShoppingCart, History, LogOut, Minus, Plus, Send, Check, X, Wine, Beer, CupSoda, Trash2,
+  ShoppingCart, History, LogOut, Minus, Plus, Send, Check, X, Wine, Trash2,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useInventoryStore } from '@/stores/inventory-store';
@@ -11,33 +13,43 @@ import { ProductCard } from '@/components/orders/product-card';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn, formatTime } from '@/lib/utils';
-import { CATEGORIES, getCategoryInfo } from '@/lib/constants';
+import { CATEGORIES, CATEGORY_ICONS, getCategoryInfo } from '@/lib/constants';
 import type { ProductWithCalc, StaffProfile } from '@/types';
 
 export function BohView() {
   const [viewMode, setViewMode] = useState<'products' | 'history'>('products');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
-  const currentStaff = useAuthStore((s) => s.currentStaff);
-  const allStaff = useAuthStore((s) => s.allStaff);
-  const logout = useAuthStore((s) => s.logout);
+  const { currentStaff, allStaff, logout } = useAuthStore(
+    useShallow((s) => ({ currentStaff: s.currentStaff, allStaff: s.allStaff, logout: s.logout }))
+  );
   const getProductsWithCalc = useInventoryStore((s) => s.getProductsWithCalc);
 
-  const cart = useBohStore((s) => s.cart);
-  const addToCart = useBohStore((s) => s.addToCart);
-  const removeFromCart = useBohStore((s) => s.removeFromCart);
-  const clearCart = useBohStore((s) => s.clearCart);
-  const getCartTotal = useBohStore((s) => s.getCartTotal);
-  const getCartQuantity = useBohStore((s) => s.getCartQuantity);
-  const isSelectingFoh = useBohStore((s) => s.isSelectingFoh);
-  const startFohSelection = useBohStore((s) => s.startFohSelection);
-  const cancelFohSelection = useBohStore((s) => s.cancelFohSelection);
-  const submitToFoh = useBohStore((s) => s.submitToFoh);
-  const showSuccess = useBohStore((s) => s.showSuccess);
-  const lastConfirmedFoh = useBohStore((s) => s.lastConfirmedFoh);
-  const getTodayHistory = useBohStore((s) => s.getTodayHistory);
-  const getTodayTotal = useBohStore((s) => s.getTodayTotal);
-  const removeDisbursement = useBohStore((s) => s.removeDisbursement);
+  const {
+    cart, addToCart, removeFromCart, clearCart,
+    getCartTotal, getCartQuantity,
+    isSelectingFoh, startFohSelection, cancelFohSelection, submitToFoh,
+    showSuccess, lastConfirmedFoh,
+    getTodayHistory, getTodayTotal, removeDisbursement,
+  } = useBohStore(
+    useShallow((s) => ({
+      cart: s.cart,
+      addToCart: s.addToCart,
+      removeFromCart: s.removeFromCart,
+      clearCart: s.clearCart,
+      getCartTotal: s.getCartTotal,
+      getCartQuantity: s.getCartQuantity,
+      isSelectingFoh: s.isSelectingFoh,
+      startFohSelection: s.startFohSelection,
+      cancelFohSelection: s.cancelFohSelection,
+      submitToFoh: s.submitToFoh,
+      showSuccess: s.showSuccess,
+      lastConfirmedFoh: s.lastConfirmedFoh,
+      getTodayHistory: s.getTodayHistory,
+      getTodayTotal: s.getTodayTotal,
+      removeDisbursement: s.removeDisbursement,
+    }))
+  );
 
   const products = getProductsWithCalc(categoryFilter);
   const cartTotal = getCartTotal();
@@ -56,8 +68,6 @@ export function BohView() {
   const handleSubmitToFoh = async (foh: StaffProfile) => {
     await submitToFoh(foh, currentStaff);
   };
-
-  const categoryIcons: Record<string, typeof Wine> = { liquor: Wine, beer: Beer, fountain: CupSoda };
 
   // ===== Success overlay =====
   if (showSuccess && lastConfirmedFoh) {
@@ -93,7 +103,7 @@ export function BohView() {
                 className="w-full flex items-center gap-4 p-4 bg-gray-50 rounded-2xl hover:bg-blue-50 hover:border-blue-200 border border-gray-100 transition text-left"
               >
                 {staff.photo_url ? (
-                  <img src={staff.photo_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+                  <Image src={staff.photo_url} alt="" width={48} height={48} className="rounded-full object-cover" />
                 ) : (
                   <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-lg font-bold">
                     {staff.name.charAt(0)}
@@ -127,12 +137,12 @@ export function BohView() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-gradient-to-r from-orange-500 to-orange-600 text-white sticky top-0 z-40">
+      <header className="bg-gradient-to-r from-orange-500 to-orange-600 text-white sticky top-0 z-40 pt-[env(safe-area-inset-top)]">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {currentStaff?.photo_url ? (
-                <img src={currentStaff.photo_url} alt="" className="w-10 h-10 rounded-full border-2 border-white/30 object-cover" />
+                <Image src={currentStaff.photo_url} alt="" width={40} height={40} className="rounded-full border-2 border-white/30 object-cover" />
               ) : (
                 <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-lg font-bold">
                   👨‍🍳
@@ -181,7 +191,7 @@ export function BohView() {
           <div className="flex gap-2 overflow-x-auto pb-1">
             <button onClick={() => setCategoryFilter('all')} className={cn('flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition', categoryFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600')}>All</button>
             {CATEGORIES.map((cat) => {
-              const Icon = categoryIcons[cat.id] || Wine;
+              const Icon = CATEGORY_ICONS[cat.id] || Wine;
               return (
                 <button key={cat.id} onClick={() => setCategoryFilter(cat.id)} className={cn('flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition', categoryFilter === cat.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600')}>
                   <Icon className="w-4 h-4" /> {cat.name}
@@ -244,7 +254,7 @@ export function BohView() {
 
       {/* Floating cart bar */}
       {cartTotal > 0 && viewMode === 'products' && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg px-4 py-3 z-40 animate-slide-up">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] z-40 animate-slide-up">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5 text-orange-500" />

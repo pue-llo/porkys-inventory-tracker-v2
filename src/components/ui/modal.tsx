@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -14,6 +14,8 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children, size = 'md', showClose = true }: ModalProps) {
+  const scrollYRef = useRef(0);
+
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -24,11 +26,19 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', showClose
   useEffect(() => {
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'hidden';
+      // iOS-safe scroll lock: save position, fix body
+      scrollYRef.current = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${scrollYRef.current}px`;
     }
     return () => {
       document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = '';
+      // Restore scroll position
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+      window.scrollTo(0, scrollYRef.current);
     };
   }, [isOpen, handleEscape]);
 
@@ -53,7 +63,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', showClose
       <div
         className={cn(
           'relative bg-white w-full rounded-t-2xl sm:rounded-2xl animate-slide-up',
-          'max-h-[90vh] overflow-y-auto',
+          'max-h-[90vh] overflow-y-auto overscroll-contain',
           sizeClasses[size]
         )}
         onClick={(e) => e.stopPropagation()}
@@ -65,7 +75,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', showClose
             {showClose && (
               <button
                 onClick={onClose}
-                className="p-2 -m-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-400"
+                className="p-3 -m-3 rounded-xl hover:bg-gray-100 transition-colors text-gray-400"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -74,7 +84,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', showClose
         )}
 
         {/* Body */}
-        <div className="p-5">{children}</div>
+        <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">{children}</div>
       </div>
     </div>
   );
