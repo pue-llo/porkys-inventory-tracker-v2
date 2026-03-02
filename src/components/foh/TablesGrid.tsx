@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useTableStore } from '@/stores/table-store';
+import { useCurrencyStore } from '@/hooks/use-currency';
 import { TableCard } from '@/components/tables/table-card';
 import { TableDetailModal } from '@/components/tables/table-detail-modal';
 import { haptic } from '@/lib/utils';
@@ -17,6 +18,7 @@ export function TablesGrid() {
   const closedTables = useTableStore((s) => s.getClosedTables());
   const getTable = useTableStore((s) => s.getTable);
   const openTable = useTableStore((s) => s.openTable);
+  const formatMoney = useCurrencyStore((s) => s.format);
 
   const handleTableTap = (tableId: string) => {
     setSelectedTableId(tableId);
@@ -29,25 +31,32 @@ export function TablesGrid() {
 
   const selectedTable = selectedTableId ? getTable(selectedTableId) : null;
 
+  const totalRevenue = useMemo(() => {
+    const visibleClosed = showClosedTables ? closedTables : [];
+    return [...activeTables, ...visibleClosed].reduce((sum, t) => sum + (t.total || 0), 0);
+  }, [activeTables, closedTables, showClosedTables]);
+
   return (
     <>
-      {/* Table count bar */}
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-gray-500">{activeTables.length} active, {closedTables.length} closed</span>
-        <button onClick={() => setShowClosedTables(!showClosedTables)} className="text-sm text-blue-600 font-medium">
-          {showClosedTables ? 'Hide Closed' : 'Show Closed'}
-        </button>
-      </div>
+      <div className="pb-20">
+        {/* Table count bar */}
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm text-gray-500">{activeTables.length} active, {closedTables.length} closed</span>
+          <button onClick={() => setShowClosedTables(!showClosedTables)} className="text-sm text-blue-600 font-medium">
+            {showClosedTables ? 'Hide Closed' : 'Show Closed'}
+          </button>
+        </div>
 
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-        {/* Add new table button */}
+        {/* New Table row */}
         <button
           onClick={handleAddNewTable}
-          className="table-card bg-white rounded-2xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-blue-500 hover:text-blue-500 hover:bg-blue-50/50 transition"
-          style={{ minHeight: 140 }}
+          className="w-full flex items-center gap-3 py-3 px-1 text-gray-400 hover:text-blue-500 transition border-b border-gray-100"
         >
-          <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-2">
-            <span className="text-2xl">+</span>
+          <div
+            className="bg-gray-100 flex items-center justify-center shrink-0"
+            style={{ width: 36, height: 36, borderRadius: 10 }}
+          >
+            <span className="text-lg">+</span>
           </div>
           <span className="text-sm font-medium">New Table</span>
         </button>
@@ -61,6 +70,26 @@ export function TablesGrid() {
         {showClosedTables && closedTables.map((table) => (
           <TableCard key={table.id} table={table} onTap={handleTableTap} />
         ))}
+      </div>
+
+      {/* Sticky summary bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 px-4 py-3 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="text-center">
+              <p className="text-xs text-gray-400">Active</p>
+              <p className="text-sm font-bold text-green-600">{activeTables.length}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-400">Closed</p>
+              <p className="text-sm font-bold text-gray-500">{closedTables.length}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-gray-400">Total Revenue</p>
+            <p className="text-base font-bold text-gray-900">{formatMoney(totalRevenue)}</p>
+          </div>
+        </div>
       </div>
 
       {/* Table detail modal */}
